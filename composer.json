@@ -1,0 +1,20 @@
+{
+    "name": "sereno/docs",
+    "description": "Docs extension for Sereno.",
+    "type": "library",
+    "require": {
+        "sereno/core": "^0.3.9"
+    },
+    "autoload": {
+      "psr-4": {
+        "Sereno\\Extensions\\": "src/"
+      },
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Rahul Kadyan",
+            "email": "hi@znck.me"
+        }
+    ]
+}
