@@ -8,7 +8,7 @@
     "autoload": {
       "psr-4": {
         "Sereno\\Extensions\\": "src/"
-      },
+      }
     },
     "license": "MIT",
     "authors": [
