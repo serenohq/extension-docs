@@ -90,7 +90,7 @@ class DocsBuilder implements Builder
         list($index, $docs) = $this->filterFiles($files);
 
         if (!count($docs)) return;
-        
+
         $options = [
             'view' => [
                 'extends' => config('docs.extends'),
@@ -98,16 +98,17 @@ class DocsBuilder implements Builder
             ],
             'interceptor' => [$this, 'getOutputFilename'],
         ];
-        $docs_index = $this->compileWithBlade($index, $data);
+        $fallback_docs_index = $this->compileWithBlade($index, $data);
 
         $first = array_first($docs);
         $landing = config('docs.default', array_first(explode('.', $first->getBasename(), 2)));
 
         foreach ($docs as $doc) {
+            $docs_index = $this->getCompiledDocIndex($doc, $fallback_docs_index, $data);
             if (starts_with($doc->getBasename(), $landing.'.')) {
                 $indexOptions = ['interceptor' => function () {
-                    return trim($this->baseURL.DIRECTORY_SEPARATOR.'index.html', DIRECTORY_SEPARATOR);
-                }] + $options;
+                        return trim($this->baseURL.DIRECTORY_SEPARATOR.'index.html', DIRECTORY_SEPARATOR);
+                    }] + $options;
                 $this->processor->process($doc, compact('docs_index') + $data, $indexOptions);
             }
             $this->processor->process($doc, $data + compact('docs_index'), $options);
@@ -126,6 +127,21 @@ class DocsBuilder implements Builder
         $content = (new PhpEngine())->get($viewCache, $this->getViewData(['docs_url' => rtrim(url($this->baseURL), '/')] + $data));
 
         return Markdown::parse($content);
+    }
+
+    protected function getCompiledDocIndex(SplFileInfo $doc, string $fallback, array $data): string
+    {
+        $path = realpath($this->docsDirectory.DIRECTORY_SEPARATOR.$doc->getRelativePath());
+        $file = config('docs.index').'.md';
+
+        if (! $this->filesystem->exists($path.'/'.$file)) {
+            return $fallback;
+        }
+
+        return $this->compileWithBlade(
+            $this->filesystem->get($path.'/'.$file),
+            $data
+        );
     }
 
     public function getOutputFilename(SplFileInfo $file): string
