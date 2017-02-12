@@ -100,18 +100,84 @@ class DocsBuilder implements Builder
         ];
         $fallback_docs_index = $this->compileWithBlade($index, $data);
 
-        $first = array_first($docs);
-        $landing = config('docs.default', array_first(explode('.', $first->getBasename(), 2)));
+        $landings = $this->getLandings($docs);
 
         foreach ($docs as $doc) {
             $docs_index = $this->getCompiledDocIndex($doc, $fallback_docs_index, $data);
-            if (starts_with($doc->getBasename(), $landing.'.')) {
-                $indexOptions = ['interceptor' => function () {
-                        return trim($this->baseURL.DIRECTORY_SEPARATOR.'index.html', DIRECTORY_SEPARATOR);
-                    }] + $options;
-                $this->processor->process($doc, compact('docs_index') + $data, $indexOptions);
-            }
             $this->processor->process($doc, $data + compact('docs_index'), $options);
+        }
+
+        foreach ($landings as $path => $target) {
+
+            $doc = new SplFileInfo(
+                $this->docsDirectory.DIRECTORY_SEPARATOR.$target,
+                $target,
+                $this->docsDirectory.DIRECTORY_SEPARATOR.$target);
+
+            $indexOptions = ['interceptor' => function () use ($path) {
+                    $index = $this->baseURL.DIRECTORY_SEPARATOR.$path.DIRECTORY_SEPARATOR.'index.html';
+                    return trim($index, DIRECTORY_SEPARATOR);
+                }] + $options;
+
+            if (config('docs.redirect')) {
+                $filename = substr($target, 0, -strlen('.md'));
+                $data['target'] = url(trim(
+                    $this->baseURL.DIRECTORY_SEPARATOR.$filename, DIRECTORY_SEPARATOR
+                ));
+                $doc = new SplFileInfo($this->viewFactory->getFinder()->find('redirector'), '', '');
+            }
+
+            $this->processor->process($doc, compact('docs_index') + $data, $indexOptions);
+        }
+    }
+
+    protected function getLandings(array $docs)
+    {
+        $landings = [];
+        $paths = [];
+
+        $default = array_first(explode('.', array_first($docs)->getBasename(), 2));
+        $config = config('docs.default', $default);
+        $indexes = collect(explode(',', $config));
+
+        foreach ($docs as $doc) {
+            $relativePath = $doc->getRelativePath();
+            if (!in_array($relativePath, $paths)) {
+                $paths[] = $doc->getRelativePath();
+            }
+
+            $name = substr($doc->getBasename(), 0, -strlen('.md'));
+
+            if (in_array($name, $indexes->all())) {
+                $landings[$doc->getRelativePath()] = $doc->getRelativePathname();
+            }
+        }
+
+        $keys = array_keys($landings);
+
+        $filtered = collect($paths)->filter(function ($path) use ($keys) {
+            return !in_array($path, $keys);
+        })->unique()->all();
+
+        foreach ($filtered as $path) {
+            if ($landing = $this->findLanding($indexes, $path, $landings)) {
+                $landings[$path] = $landing;
+            }
+        }
+
+        return $landings;
+    }
+
+    protected function findLanding($indexes, $path, $paths)
+    {
+        if (isset($paths[$path])) {
+            return $paths[$path];
+        }
+
+        foreach ($indexes as $index) {
+            if (isset($paths[$path.'/'.$index])) {
+                return $paths[$path.'/'.$index];
+            }
         }
     }
 

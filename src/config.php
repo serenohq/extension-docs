@@ -62,4 +62,15 @@ return [
     |
     */
     'default' => 'installation',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Redirection
+    |--------------------------------------------------------------------------
+    |
+    | Whether or not the documentation should make a copy of the default page
+    | or if it should redirect to that page.
+    |
+    */
+    'redirect' => false,
 ];
